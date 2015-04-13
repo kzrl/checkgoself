@@ -1,6 +1,6 @@
-# gochecker
+# checkgoself 
 
 
-Check values on a system - and do things with them.
+Check metrics on a system - and do things with them.
 
 

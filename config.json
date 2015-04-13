@@ -1,0 +1,27 @@
+{
+  "Metrics": [
+
+    {
+      "Name": "Root volume space",
+      "Type": "command",
+      "Target": "df -h / | awk 'NR>1{print $5}'",
+      "MaxValue": "90%"
+    },
+
+    {
+      "Name": "HTTP req time",
+      "Type": "httpreq",
+      "Target": "http://localhost/",
+      "MaxValue": "100ms"
+    },
+
+    {
+      "Name": "No TTY users",
+      "Type": "command",
+      "Target": "who | grep tty",
+      "Output": "empty"
+    }
+
+  ]
+
+}
