@@ -3,7 +3,7 @@
 
     {
       "Name": "Root volume space",
-      "Type": "command",
+      "Type": "freespace",
       "Target": "df -h / | awk 'NR>1{print $5}'",
       "MaxValue": "90%"
     },
@@ -16,10 +16,10 @@
     },
 
     {
-      "Name": "No TTY users",
+      "Name": "No TTY users allowed",
       "Type": "command",
-      "Target": "who | grep tty",
-      "Output": "empty"
+      "Target": "who | awk '$2 ~ /tty/ {print $2}'",
+      "Output": ""
     }
 
   ]

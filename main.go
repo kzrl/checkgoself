@@ -3,8 +3,12 @@ package main
 import (
 	"encoding/json"
 	"log"
+	"net/http"
 	"os"
 	"os/exec"
+	"strconv"
+	"strings"
+	"time"
 )
 
 type Metric struct {
@@ -39,27 +43,88 @@ func parseConfig() Config {
 func check(metrics []Metric) {
 
 	//Loop over the metrics we're collecting. Check them
-	for i, metric := range metrics {
-		log.Printf("%v => %+v", i, metric.Name)
+	for _, metric := range metrics {
 
 		switch metric.Type {
 		case "command":
-			log.Println(metric.Target)
-			cmd := "/bin/sh"
-			output, err := exec.Command(cmd, metric.Target).Output()
-			if err != nil {
-				log.Fatal(err)
-			}
-			log.Printf("Output is %v\n", output)
+			command(metric)
 
 		case "httpreq":
-			log.Println("Do HTTP Things")
+			httpreq(metric)
 
+		case "freespace":
+			diskUsage(metric)
 		}
 
 	}
 }
 
-func diskusage() {
+//diskUsage checks the current usage is less than m.MaxValue
+func diskUsage(m Metric) {
+	f := shellCmd(m.Target)
+	f = strings.TrimSuffix(f, "%")
+	percentUsed, err := strconv.Atoi(f)
+	checkError(err)
+	max := strings.TrimSuffix(m.MaxValue, "%")
+	percentMax, err := strconv.Atoi(max)
+	checkError(err)
 
+	//@TODO log this to http://golang.org/pkg/log/syslog/
+	if percentUsed > percentMax {
+		log.Printf("ALERT: Disk usage %d%% > %d%%", percentUsed, percentMax)
+	} else {
+		log.Printf("OK: Disk usage %d%% < %d%%", percentUsed, percentMax)
+	}
+}
+
+//command executes m.Target using the shell and checks the output == m.Output
+func command(m Metric) {
+	out := shellCmd(m.Target)
+	if out != m.Output {
+		//@TODO log this to http://golang.org/pkg/log/syslog/
+		log.Printf("ALERT: %s - %s", m.Name, out)
+	}
+}
+
+//httpreq makes a GET request on m.Target and checks the response time < m.MaxValue
+func httpreq(m Metric) {
+
+	start := time.Now()
+
+	_, err := http.Get(m.Target)
+	checkError(err)
+
+	end := time.Since(start)
+
+	maxDuration, err := time.ParseDuration(m.MaxValue)
+	checkError(err)
+
+	if end > maxDuration {
+		log.Printf("ALERT: Request time %s > %s", end, maxDuration)
+	} else {
+		log.Printf("OK: Request time %s < %s", end, maxDuration)
+
+	}
+}
+
+//shellCmd runs a command using the shell
+func shellCmd(target string) string {
+
+	cmd := "/bin/sh"
+	output, err := exec.Command(cmd, "-c", target).Output()
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	s := string(output[:])
+	s = strings.TrimSuffix(s, "\n")
+
+	return s
+}
+
+//checkError
+func checkError(e error) {
+	if e != nil {
+		log.Fatal(e)
+	}
 }
