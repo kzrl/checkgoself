@@ -6,6 +6,8 @@ import (
 	"log"
 	"log/syslog"
 	"net/http"
+	"net/smtp"
+	"net/url"
 	"os"
 	"os/exec"
 	"strconv"
@@ -23,8 +25,16 @@ type Metric struct {
 	AlarmGet   string
 }
 
+type EmailSettings struct {
+	SmtpHost     string
+	SmtpUsername string
+	SmtpPassword string
+	SmtpPort     string
+}
+
 type Config struct {
 	Metrics []Metric
+	Email   EmailSettings
 }
 
 func main() {
@@ -79,7 +89,8 @@ func diskUsage(m Metric) {
 	msg := ""
 
 	if percentUsed > percentMax {
-		msg = fmt.Sprintf("ALERT: Disk usage %d%% > %d%% ", percentUsed, percentMax)
+		msg = fmt.Sprintf("ALARM: Disk usage %d%% > %d%% ", percentUsed, percentMax)
+		alarm(m, msg)
 	} else {
 		msg = fmt.Sprintf("OK: Disk usage %d%% < %d%%", percentUsed, percentMax)
 	}
@@ -92,8 +103,9 @@ func diskUsage(m Metric) {
 func command(m Metric) {
 	out := shellCmd(m.Target)
 	if out != m.Output {
-		//@TODO log this to http://golang.org/pkg/log/syslog/
-		writeLog(fmt.Sprintf("ALERT: %s - %s", m.Name, out))
+		msg := fmt.Sprintf("ALARM: %s - %s", m.Name, out)
+		writeLog(msg)
+		alarm(m, msg)
 	}
 }
 
@@ -111,7 +123,8 @@ func httpreq(m Metric) {
 	checkError(err)
 	msg := ""
 	if end > maxDuration {
-		msg = fmt.Sprintf("ALERT: Request time %s > %s", end, maxDuration)
+		msg = fmt.Sprintf("ALARM: Request time %s > %s", end, maxDuration)
+		alarm(m, msg)
 	} else {
 		msg = fmt.Sprintf("OK: Request time %s < %s", end, maxDuration)
 	}
@@ -140,7 +153,30 @@ func checkError(e error) {
 	}
 }
 
-func alarm(m Metric) {
+//alarm triggers a HTTP GET or Email when a metric is out of bounds
+func alarm(m Metric, msg string) {
+
+	//Send email with alert details
+	if m.AlarmEmail != "" {
+		log.Println(m.AlarmEmail)
+		log.Printf("+%v", m)
+		sendEmail(m, msg)
+	}
+
+	//Peform HTTP GET
+	if m.AlarmGet != "" {
+
+		//Pass some basic parameters along with the GET
+		v := url.Values{}
+		v.Set("metric", m.Name)
+		v.Set("message", msg)
+
+		alarmUrl := m.AlarmGet + "?" + v.Encode()
+
+		_, getErr := http.Get(alarmUrl)
+		checkError(getErr)
+
+	}
 
 }
 
@@ -154,4 +190,26 @@ func writeLog(s string) {
 	}
 	err = l.Warning(s)
 	checkError(err)
+}
+
+//sendEmail more or less taken from http://golang.org/pkg/net/smtp/#example_PlainAuth
+func sendEmail(m Metric, msg string) {
+
+	config := parseConfig()
+	// Set up authentication information.
+	c := config.Email
+
+	auth := smtp.PlainAuth("", c.SmtpUsername, c.SmtpPassword, c.SmtpHost)
+
+	// Connect to the server, authenticate, set the sender and recipient,
+	// and send the email all in one step.
+	to := []string{m.AlarmEmail}
+
+	emailBody := "Subject: [checkgoself] " + msg + "\r\n"
+
+	msgBytes := []byte(emailBody)
+	err := smtp.SendMail(c.SmtpHost+":"+c.SmtpPort, auth, "alerts@karlcordes.com", to, msgBytes)
+	if err != nil {
+		log.Fatal(err)
+	}
 }
