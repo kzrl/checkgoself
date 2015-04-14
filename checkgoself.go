@@ -196,7 +196,7 @@ func sendEmail(m Metric, msg string) {
 		return
 	}
 
-	//Send email with alert details
+	//if the alarm email is not specified for this metric
 	if m.AlarmEmail == "" {
 		return
 	}
