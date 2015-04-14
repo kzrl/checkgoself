@@ -2,7 +2,9 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"log"
+	"log/syslog"
 	"net/http"
 	"os"
 	"os/exec"
@@ -12,11 +14,13 @@ import (
 )
 
 type Metric struct {
-	Name     string
-	Type     string
-	Target   string
-	MaxValue string
-	Output   string
+	Name       string
+	Type       string
+	Target     string
+	MaxValue   string
+	Output     string
+	AlarmEmail string
+	AlarmGet   string
 }
 
 type Config struct {
@@ -61,7 +65,10 @@ func check(metrics []Metric) {
 
 //diskUsage checks the current usage is less than m.MaxValue
 func diskUsage(m Metric) {
-	f := shellCmd(m.Target)
+
+	cmd := fmt.Sprintf("df -h %s | awk 'NR>1{print $5}'", m.Target)
+
+	f := shellCmd(cmd)
 	f = strings.TrimSuffix(f, "%")
 	percentUsed, err := strconv.Atoi(f)
 	checkError(err)
@@ -69,11 +76,15 @@ func diskUsage(m Metric) {
 	percentMax, err := strconv.Atoi(max)
 	checkError(err)
 
-	//@TODO log this to http://golang.org/pkg/log/syslog/
+	msg := ""
+
 	if percentUsed > percentMax {
-		log.Printf("ALERT: Disk usage %d%% > %d%%", percentUsed, percentMax)
+		msg = fmt.Sprintf("ALERT: Disk usage %d%% > %d%% ", percentUsed, percentMax)
 	} else {
-		log.Printf("OK: Disk usage %d%% < %d%%", percentUsed, percentMax)
+		msg = fmt.Sprintf("OK: Disk usage %d%% < %d%%", percentUsed, percentMax)
+	}
+	if msg != "" {
+		writeLog(msg)
 	}
 }
 
@@ -82,7 +93,7 @@ func command(m Metric) {
 	out := shellCmd(m.Target)
 	if out != m.Output {
 		//@TODO log this to http://golang.org/pkg/log/syslog/
-		log.Printf("ALERT: %s - %s", m.Name, out)
+		writeLog(fmt.Sprintf("ALERT: %s - %s", m.Name, out))
 	}
 }
 
@@ -98,13 +109,13 @@ func httpreq(m Metric) {
 
 	maxDuration, err := time.ParseDuration(m.MaxValue)
 	checkError(err)
-
+	msg := ""
 	if end > maxDuration {
-		log.Printf("ALERT: Request time %s > %s", end, maxDuration)
+		msg = fmt.Sprintf("ALERT: Request time %s > %s", end, maxDuration)
 	} else {
-		log.Printf("OK: Request time %s < %s", end, maxDuration)
-
+		msg = fmt.Sprintf("OK: Request time %s < %s", end, maxDuration)
 	}
+	writeLog(msg)
 }
 
 //shellCmd runs a command using the shell
@@ -127,4 +138,20 @@ func checkError(e error) {
 	if e != nil {
 		log.Fatal(e)
 	}
+}
+
+func alarm(m Metric) {
+
+}
+
+//writeLog
+func writeLog(s string) {
+	log.Println(s)
+	l, err := syslog.New(syslog.LOG_ERR, "[checkgoself]")
+	defer l.Close()
+	if err != nil {
+		log.Fatal("error writing syslog!")
+	}
+	err = l.Warning(s)
+	checkError(err)
 }
