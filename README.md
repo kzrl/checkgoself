@@ -17,6 +17,9 @@ checkgoself
   -version=false: Show version
 ```
 
+Runs through the checks defined in `config.json`. No output to syslog or STDOUT unless a check is out of bounds.
+
+
 
 
     testserver
