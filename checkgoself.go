@@ -92,8 +92,6 @@ func diskUsage(m Metric) {
 	if percentUsed > percentMax {
 		msg = fmt.Sprintf("ALARM: Disk usage %d%% > %d%% ", percentUsed, percentMax)
 		alarm(m, msg)
-	} else {
-		msg = fmt.Sprintf("OK: Disk usage %d%% < %d%%", percentUsed, percentMax)
 	}
 	if msg != "" {
 		writeLog(msg)
@@ -126,8 +124,6 @@ func httpreq(m Metric) {
 	if end > maxDuration {
 		msg = fmt.Sprintf("ALARM: Request time %s > %s", end, maxDuration)
 		alarm(m, msg)
-	} else {
-		msg = fmt.Sprintf("OK: Request time %s < %s", end, maxDuration)
 	}
 	writeLog(msg)
 }
@@ -178,7 +174,9 @@ func alarm(m Metric, msg string) {
 
 //writeLog to system log
 func writeLog(s string) {
-	log.Println(s)
+	if s == "" {
+		return
+	}
 	l, err := syslog.New(syslog.LOG_ERR, "[checkgoself]")
 	defer l.Close()
 	if err != nil {
@@ -192,7 +190,8 @@ func writeLog(s string) {
 func sendEmail(m Metric, msg string) {
 
 	//if the -email="false" flag is set
-	if !*SendEmails {
+	if *SendEmails == false {
+		log.Println("NOT SENDING EMAILS")
 		return
 	}
 

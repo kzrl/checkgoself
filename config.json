@@ -5,7 +5,7 @@
       "Name": "Root volume space",
       "Type": "freespace",
       "Target": "/",
-      "MaxValue": "40%",
+      "MaxValue": "90%",
       "AlarmEmail": "karlcordes@gmail.com",
       "AlarmGet": "http://localhost:4242/alarm1"
     },
@@ -14,7 +14,7 @@
       "Name": "HTTP req time",
       "Type": "httpreq",
       "Target": "http://localhost/",
-      "MaxValue": "00ms",
+      "MaxValue": "100ms",
       "AlarmEmail": "karlcordes@gmail.com",
       "AlarmGet": "http://localhost:4242/alarm2"
     },
@@ -23,7 +23,8 @@
       "Name": "No TTY users allowed",
       "Type": "command",
       "Target": "who | awk '$2 ~ /tty/ {print $2}'",
-      "Output": "moo",
+      "Output": "",
+      "AlarmEmail": "karlcordes@gmail.com",
       "AlarmGet": "http://localhost:4242/alarm3"
     }
 
