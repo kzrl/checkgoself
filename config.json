@@ -29,9 +29,10 @@
 
   ],
  "Email": {
-    "SmtpHost": "mail.whatever.com",
+    "SmtpHost": "homie.mail.dreamhost.com",
     "SmtpUsername": "alerts@karlcordes.com",
-    "SmtpPassword": "password",
-    "SmtpPort": "25"
+    "SmtpPassword": "q^7nWMD-",
+    "SmtpPort": "587",
+    "FromEmail": "alerts@karlcordes.com"
   }
 }

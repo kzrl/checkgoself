@@ -1,4 +1,4 @@
-package main
+package checkgoself
 
 import (
 	"encoding/json"
@@ -30,6 +30,7 @@ type EmailSettings struct {
 	SmtpUsername string
 	SmtpPassword string
 	SmtpPort     string
+	FromEmail    string
 }
 
 type Config struct {
@@ -37,14 +38,14 @@ type Config struct {
 	Email   EmailSettings
 }
 
-func main() {
-	config := parseConfig()
+// Set by flags in checkgoself/main.go
+var ConfigFile *string
+var SendEmails *bool
 
-	check(config.Metrics)
-}
-
-func parseConfig() Config {
-	file, _ := os.Open("config.json")
+//ParseConfig parses config.json, which can be set with a flag
+//eg.$ checkgoself -config="../config.json"
+func ParseConfig() Config {
+	file, _ := os.Open(*ConfigFile)
 	decoder := json.NewDecoder(file)
 	config := Config{}
 	err := decoder.Decode(&config)
@@ -54,9 +55,9 @@ func parseConfig() Config {
 	return config
 }
 
-func check(metrics []Metric) {
+//Check loops over the metrics we're collecting, and does the appropriate check
+func Check(metrics []Metric) {
 
-	//Loop over the metrics we're collecting. Check them
 	for _, metric := range metrics {
 
 		switch metric.Type {
@@ -146,7 +147,7 @@ func shellCmd(target string) string {
 	return s
 }
 
-//checkError
+//checkError - all errors are fatal for simplicity
 func checkError(e error) {
 	if e != nil {
 		log.Fatal(e)
@@ -156,12 +157,7 @@ func checkError(e error) {
 //alarm triggers a HTTP GET or Email when a metric is out of bounds
 func alarm(m Metric, msg string) {
 
-	//Send email with alert details
-	if m.AlarmEmail != "" {
-		log.Println(m.AlarmEmail)
-		log.Printf("+%v", m)
-		sendEmail(m, msg)
-	}
+	sendEmail(m, msg)
 
 	//Peform HTTP GET
 	if m.AlarmGet != "" {
@@ -180,7 +176,7 @@ func alarm(m Metric, msg string) {
 
 }
 
-//writeLog
+//writeLog to system log
 func writeLog(s string) {
 	log.Println(s)
 	l, err := syslog.New(syslog.LOG_ERR, "[checkgoself]")
@@ -195,7 +191,17 @@ func writeLog(s string) {
 //sendEmail more or less taken from http://golang.org/pkg/net/smtp/#example_PlainAuth
 func sendEmail(m Metric, msg string) {
 
-	config := parseConfig()
+	//if the -email="false" flag is set
+	if !*SendEmails {
+		return
+	}
+
+	//Send email with alert details
+	if m.AlarmEmail == "" {
+		return
+	}
+
+	config := ParseConfig()
 	// Set up authentication information.
 	c := config.Email
 
@@ -208,7 +214,7 @@ func sendEmail(m Metric, msg string) {
 	emailBody := "Subject: [checkgoself] " + msg + "\r\n"
 
 	msgBytes := []byte(emailBody)
-	err := smtp.SendMail(c.SmtpHost+":"+c.SmtpPort, auth, "alerts@karlcordes.com", to, msgBytes)
+	err := smtp.SendMail(c.SmtpHost+":"+c.SmtpPort, auth, c.FromEmail, to, msgBytes)
 	if err != nil {
 		log.Fatal(err)
 	}

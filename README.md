@@ -1,6 +1,11 @@
 # checkgoself 
 
 
-Check metrics on a system - and do things with them.
+## Installation
+
+go get github.com/kzrl/checkgoself...
+
+
+## Usage
 
 
