@@ -177,6 +177,7 @@ func writeLog(s string) {
 	if s == "" {
 		return
 	}
+	log.Println(s)
 	l, err := syslog.New(syslog.LOG_ERR, "[checkgoself]")
 	defer l.Close()
 	if err != nil {
@@ -191,7 +192,6 @@ func sendEmail(m Metric, msg string) {
 
 	//if the -email="false" flag is set
 	if *SendEmails == false {
-		log.Println("NOT SENDING EMAILS")
 		return
 	}
 

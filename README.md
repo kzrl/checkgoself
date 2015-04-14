@@ -24,6 +24,6 @@ Runs through the checks defined in `config.json`. No output to syslog or STDOUT 
 
     testserver
 
-A quick and dirty webserver listening on port 4242. It prints the contents of the request to STDOUT.
+A simple webserver listening on port 4242. It prints the contents of the request to STDOUT and HTTP 200 status to clients.
 Used to verify that checkgoself is making Alarm GET requests properly
 
